@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Check, Copy, Download, Router } from "lucide-react"
+import { AlertTriangle, Check, Copy, Download, Router, Trash2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -109,8 +109,10 @@ function buildRouterOSScript(iface: WGInterface | null, peer: Peer, config: stri
 function buildRouterOSTeardownScript(peer: Peer): string {
   const name = routerOSName(`wg-${peer.name}`)
   return [
-    `# MikroTik RouterOS 7 teardown script for peer: ${peer.name}`,
-    `# Removes the WireGuard interface and IP address created by wg-panel.`,
+    `# MikroTik RouterOS 7 cleanup script for peer: ${peer.name}`,
+    `# Use this ONLY when you want to remove the VPN client from this MikroTik router.`,
+    `# It deletes the WireGuard interface, its IP address, routes, and wg-panel firewall/NAT rules.`,
+    `# It does NOT delete the peer from WG Panel. Use the panel Delete/Trash button for that.`,
     `/ip/address/remove [find interface="${quoteRouterOS(name)}"]`,
     `/interface/wireguard/peers/remove [find interface="${quoteRouterOS(name)}"]`,
     `/ip/route/remove [find comment="wg-panel ${quoteRouterOS(name)}"]`,
@@ -174,7 +176,7 @@ export function PeerConfigDialog({ iface, peer, onClose }: Props) {
         <DialogHeader>
           <DialogTitle>Client config — {peer?.name}</DialogTitle>
           <DialogDescription>
-            Scan the QR, download the .conf file, or copy a MikroTik RouterOS 7 script.
+            Scan the QR, download the .conf file, install this peer on MikroTik, or copy a cleanup script for removing it from RouterOS.
           </DialogDescription>
         </DialogHeader>
 
@@ -196,7 +198,7 @@ export function PeerConfigDialog({ iface, peer, onClose }: Props) {
                 onClick={() => setMode("routeros")}
               >
                 <Router />
-                MikroTik RouterOS script
+                Install on MikroTik
               </Button>
               <Button
                 type="button"
@@ -204,7 +206,8 @@ export function PeerConfigDialog({ iface, peer, onClose }: Props) {
                 size="sm"
                 onClick={() => setMode("teardown")}
               >
-                Teardown script
+                <Trash2 />
+                Remove from MikroTik
               </Button>
             </div>
 
@@ -243,7 +246,13 @@ export function PeerConfigDialog({ iface, peer, onClose }: Props) {
                 </div>
               </div>
             ) : mode === "routeros" ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                  <div className="font-medium">Install script</div>
+                  <p className="mt-1 text-xs">
+                    Copy this when you want this MikroTik router to connect as a WireGuard client. Paste it into MikroTik Terminal after reviewing the endpoint and allowed-address.
+                  </p>
+                </div>
                 <Textarea
                   readOnly
                   value={loading ? "Loading..." : routerOSScript}
@@ -265,7 +274,16 @@ export function PeerConfigDialog({ iface, peer, onClose }: Props) {
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  <div className="flex items-center gap-2 font-medium">
+                    <AlertTriangle className="h-4 w-4" />
+                    Remove from MikroTik only
+                  </div>
+                  <p className="mt-1 text-xs">
+                    This cleanup script uninstalls the WireGuard interface that was created on the MikroTik router. It does not delete the peer from WG Panel. Use this only when you want to disconnect/remove this router from the VPN.
+                  </p>
+                </div>
                 <Textarea
                   readOnly
                   value={routerOSTeardownScript}
@@ -279,7 +297,7 @@ export function PeerConfigDialog({ iface, peer, onClose }: Props) {
                     onClick={copyRouterOSTeardownScript}
                   >
                     {copiedTeardown ? <Check /> : <Copy />}
-                    {copiedTeardown ? "Copied" : "Copy teardown script"}
+                    {copiedTeardown ? "Copied" : "Copy cleanup script"}
                   </Button>
                   <p className="text-xs text-muted-foreground">
                     Paste into MikroTik Terminal to remove this VPN interface from RouterOS.
