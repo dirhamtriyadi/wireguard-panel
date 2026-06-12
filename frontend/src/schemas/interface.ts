@@ -21,6 +21,7 @@ export const interfaceSchema = z.object({
   dns: z.string().max(128).optional().or(z.literal("")),
   mtu: z.coerce.number().int().min(576).max(9000).optional(),
   private_key: z.string().optional().or(z.literal("")),
+  enabled: z.boolean().optional(),
   masquerade: z.boolean().optional(),
   egress_interface: z.string().max(32).optional().or(z.literal("")),
 })

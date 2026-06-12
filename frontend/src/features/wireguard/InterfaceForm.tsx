@@ -10,6 +10,21 @@ import { applyServerValidationErrors } from "@/lib/api"
 interface Props {
   onSubmit: (values: InterfaceFormValues) => Promise<void> | void
   submitting?: boolean
+  mode?: "create" | "edit"
+  defaultValues?: Partial<InterfaceFormValues>
+}
+
+const CREATE_DEFAULTS: InterfaceFormValues = {
+  name: "wg0",
+  listen_port: 51820,
+  address: "10.8.0.1/24",
+  endpoint: "",
+  dns: "1.1.1.1",
+  mtu: 1420,
+  private_key: "",
+  enabled: true,
+  masquerade: false,
+  egress_interface: "",
 }
 
 function Field({
@@ -37,7 +52,13 @@ function Field({
   )
 }
 
-export function InterfaceForm({ onSubmit, submitting }: Props) {
+export function InterfaceForm({
+  onSubmit,
+  submitting,
+  mode = "create",
+  defaultValues,
+}: Props) {
+  const isEdit = mode === "edit"
   const {
     register,
     handleSubmit,
@@ -46,17 +67,7 @@ export function InterfaceForm({ onSubmit, submitting }: Props) {
     formState: { errors },
   } = useForm<InterfaceFormValues>({
     resolver: zodResolver(interfaceSchema),
-    defaultValues: {
-      name: "wg0",
-      listen_port: 51820,
-      address: "10.8.0.1/24",
-      endpoint: "",
-      dns: "1.1.1.1",
-      mtu: 1420,
-      private_key: "",
-      masquerade: false,
-      egress_interface: "",
-    },
+    defaultValues: { ...CREATE_DEFAULTS, ...defaultValues },
   })
 
   const masquerade = watch("masquerade")
@@ -72,8 +83,19 @@ export function InterfaceForm({ onSubmit, submitting }: Props) {
   return (
     <form onSubmit={handleSubmit(handleValidSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <Field id="name" label="Name" error={errors.name?.message}>
-          <Input id="name" placeholder="wg0" {...register("name")} />
+        <Field
+          id="name"
+          label="Name"
+          hint={isEdit ? "Interface name can't be changed." : undefined}
+          error={errors.name?.message}
+        >
+          <Input
+            id="name"
+            placeholder="wg0"
+            readOnly={isEdit}
+            className={isEdit ? "bg-muted text-muted-foreground" : undefined}
+            {...register("name")}
+          />
         </Field>
         <Field
           id="listen_port"
@@ -119,18 +141,37 @@ export function InterfaceForm({ onSubmit, submitting }: Props) {
         </Field>
       </div>
 
-      <Field
-        id="private_key"
-        label="Private key (optional)"
-        hint="Leave blank to auto-generate a key pair."
-        error={errors.private_key?.message}
-      >
-        <Input
+      {!isEdit && (
+        <Field
           id="private_key"
-          placeholder="auto-generated if empty"
-          {...register("private_key")}
-        />
-      </Field>
+          label="Private key (optional)"
+          hint="Leave blank to auto-generate a key pair."
+          error={errors.private_key?.message}
+        >
+          <Input
+            id="private_key"
+            placeholder="auto-generated if empty"
+            {...register("private_key")}
+          />
+        </Field>
+      )}
+
+      {isEdit && (
+        <label htmlFor="enabled" className="flex items-start gap-2">
+          <input
+            id="enabled"
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-input"
+            {...register("enabled")}
+          />
+          <span className="space-y-0.5">
+            <span className="block text-sm font-medium">Enabled</span>
+            <span className="block text-xs text-muted-foreground">
+              Disabling tears the device down and removes its NAT rules.
+            </span>
+          </span>
+        </label>
+      )}
 
       <div className="space-y-3 rounded-md border p-3">
         <label htmlFor="masquerade" className="flex items-start gap-2">
@@ -174,7 +215,13 @@ export function InterfaceForm({ onSubmit, submitting }: Props) {
           </Button>
         </DialogClose>
         <Button type="submit" disabled={submitting}>
-          {submitting ? "Creating..." : "Create interface"}
+          {isEdit
+            ? submitting
+              ? "Saving..."
+              : "Save changes"
+            : submitting
+              ? "Creating..."
+              : "Create interface"}
         </Button>
       </DialogFooter>
     </form>

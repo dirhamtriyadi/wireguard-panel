@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
   Plus,
+  Pencil,
   RefreshCw,
   Trash2,
   QrCode,
@@ -51,6 +52,7 @@ import {
   getInterfaceStatus,
   listInterfaces,
   syncInterface,
+  updateInterface,
   updatePeer,
 } from "./api"
 import { ListControls } from "./ListControls"
@@ -90,6 +92,7 @@ export function Dashboard() {
   const [submitting, setSubmitting] = useState(false)
 
   const [createOpen, setCreateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [addPeerOpen, setAddPeerOpen] = useState(false)
   const [configPeer, setConfigPeer] = useState<Peer | null>(null)
 
@@ -151,6 +154,25 @@ export function Dashboard() {
       }
     } catch (e) {
       setBanner({ kind: "error", text: apiErrorMessage(e, "Failed to create interface") })
+      throw e
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleEditInterface(values: InterfaceFormValues) {
+    if (!selectedId) return
+    setSubmitting(true)
+    try {
+      const { message } = await updateInterface(selectedId, values)
+      setEditOpen(false)
+      await loadInterfaces()
+      await loadStatus(selectedId)
+      if (message && message !== "interface updated") {
+        setBanner({ kind: "info", text: message })
+      }
+    } catch (e) {
+      setBanner({ kind: "error", text: apiErrorMessage(e, "Failed to update interface") })
       throw e
     } finally {
       setSubmitting(false)
@@ -306,9 +328,16 @@ export function Dashboard() {
                   <Badge variant="muted">kernel down</Badge>
                 )}
                 {!iface.enabled && <Badge variant="destructive">disabled</Badge>}
+                {iface.masquerade ? (
+                  <Badge variant="success">internet</Badge>
+                ) : (
+                  <Badge variant="muted">internal-only</Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 {iface.endpoint}:{iface.listen_port} · {iface.address} · DNS {iface.dns || "—"}
+                {iface.masquerade &&
+                  ` · NAT via ${iface.egress_interface || "auto"}`}
               </CardDescription>
               <p className="break-all font-mono text-xs text-muted-foreground">
                 pubkey: {iface.public_key}
@@ -322,6 +351,39 @@ export function Dashboard() {
                 <Power />
                 Apply
               </Button>
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="icon" title="Edit interface">
+                    <Pencil />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit {iface.name}</DialogTitle>
+                    <DialogDescription>
+                      Toggle internet access (NAT) and other settings. Changes are
+                      applied to the kernel on save.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <InterfaceForm
+                    key={iface.id}
+                    mode="edit"
+                    submitting={submitting}
+                    onSubmit={handleEditInterface}
+                    defaultValues={{
+                      name: iface.name,
+                      listen_port: iface.listen_port,
+                      address: iface.address,
+                      endpoint: iface.endpoint,
+                      dns: iface.dns,
+                      mtu: iface.mtu,
+                      enabled: iface.enabled,
+                      masquerade: iface.masquerade,
+                      egress_interface: iface.egress_interface,
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
               <Button
                 variant="outline"
                 size="icon"

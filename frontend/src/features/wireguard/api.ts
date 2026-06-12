@@ -34,6 +34,17 @@ export async function createInterface(
   return { data: data.data, message: data.message }
 }
 
+export async function updateInterface(
+  id: number,
+  payload: InterfaceFormValues,
+): Promise<{ data: WGInterface; message?: string }> {
+  const { data } = await api.put<ApiResponse<WGInterface>>(
+    `/interfaces/${id}`,
+    payload,
+  )
+  return { data: data.data, message: data.message }
+}
+
 export async function deleteInterface(id: number): Promise<string | undefined> {
   const { data } = await api.delete<ApiResponse<unknown>>(`/interfaces/${id}`)
   return data.message
