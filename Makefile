@@ -10,7 +10,7 @@ FRONTEND_PORT ?= 5173
 
 help: ## Tampilkan daftar command
 	@awk 'BEGIN {FS = ":.*##"; printf "\nWireGuard Panel Makefile\n\nUsage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@printf "\nContoh:\n  make dev              # jalankan backend + frontend sekaligus\n  make backend          # jalankan backend saja\n  make frontend         # jalankan frontend saja\n  make docker-up        # jalankan backend compose\n\n"
+	@printf "\nContoh:\n  make dev              # jalankan backend + frontend sekaligus\n  make backend          # jalankan backend saja\n  make frontend         # jalankan frontend saja\n  make docker-up        # jalankan full-stack (DB + API + frontend) via Docker\n\n"
 
 env: ## Buat file .env dari .env.example jika belum ada
 	@if [ ! -f $(BACKEND_DIR)/.env ] && [ -f $(BACKEND_DIR)/.env.example ]; then cp $(BACKEND_DIR)/.env.example $(BACKEND_DIR)/.env; echo "created $(BACKEND_DIR)/.env"; fi
@@ -40,13 +40,13 @@ db-up: ## Jalankan database Postgres dari backend/docker-compose.yml
 db-down: ## Matikan database compose
 	@cd $(BACKEND_DIR) && docker compose down
 
-docker-up: ## Jalankan backend API + DB via Docker Compose
+docker-up: ## Jalankan full-stack (DB + API + frontend) via Docker Compose
 	@cd $(BACKEND_DIR) && docker compose up --build
 
-docker-down: ## Matikan backend Docker Compose
+docker-down: ## Matikan Docker Compose
 	@cd $(BACKEND_DIR) && docker compose down
 
-docker-logs: ## Lihat log backend Docker Compose
+docker-logs: ## Lihat log Docker Compose
 	@cd $(BACKEND_DIR) && docker compose logs -f
 
 backend-run: env ## Jalankan Go backend lokal; gunakan sudo jika perlu CAP_NET_ADMIN

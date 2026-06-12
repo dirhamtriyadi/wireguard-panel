@@ -35,8 +35,27 @@ services:
       DB_PASSWORD: postgres
       DB_NAME: wg_panel
       DB_SSLMODE: disable
-      DEFAULT_ENDPOINT: vpn.example.com
-      CORS_ALLOW_ORIGINS: "http://100.113.150.46:5173"
+      DEFAULT_ENDPOINT: ${DEFAULT_ENDPOINT:-vpn.example.com}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:5173}
+      # Admin login. Change the password before exposing the panel; an empty
+      # password locks the whole API. Set a long random AUTH_TOKEN_SECRET in
+      # production (e.g. `openssl rand -hex 32`) to keep sessions across restarts.
+      AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-change-me}
+      AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:-}
+      AUTH_TOKEN_TTL_HOURS: ${AUTH_TOKEN_TTL_HOURS:-24}
+
+  # Static frontend served by Nginx. The API URL is baked in at build time, so
+  # set VITE_API_BASE_URL to a host the browser can reach (not "localhost" if
+  # you open the panel from another machine).
+  web:
+    build:
+      context: ../frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8083/api/v1}
+    ports:
+      - "5173:80"
+    restart: unless-stopped
 
 volumes:
   pgdata:

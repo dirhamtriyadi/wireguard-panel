@@ -225,7 +225,11 @@ Buka:
 http://localhost:5173
 ```
 
-## Menjalankan backend dengan Docker Compose
+## Menjalankan full-stack dengan Docker Compose
+
+`backend/docker-compose.yml` menjalankan **tiga** service sekaligus: `db`
+(PostgreSQL), `api` (backend Go), dan `web` (frontend di-build lalu disajikan
+Nginx pada port `5173`).
 
 Dari folder backend:
 
@@ -234,13 +238,42 @@ cd backend
 docker compose up --build
 ```
 
+Buka panel di `http://localhost:5173`, lalu login dengan `AUTH_USERNAME` /
+`AUTH_PASSWORD`.
+
+Konfigurasi lewat environment (atau buat file `backend/.env`) — semua punya
+default, ubah seperlunya:
+
+```env
+# Login admin (WAJIB diubah sebelum diekspos)
+AUTH_USERNAME=admin
+AUTH_PASSWORD=change-me
+AUTH_TOKEN_SECRET=            # production: openssl rand -hex 32
+AUTH_TOKEN_TTL_HOURS=24
+
+# URL API yang dipanggil browser — di-bake ke frontend saat build.
+# Pakai IP yang bisa dijangkau browser, jangan "localhost" bila diakses dari mesin lain.
+VITE_API_BASE_URL=http://localhost:8083/api/v1
+
+# Origin frontend untuk CORS (harus cocok dengan alamat saat panel dibuka)
+CORS_ALLOW_ORIGINS=http://localhost:5173
+DEFAULT_ENDPOINT=vpn.example.com
+```
+
+> Mengubah `VITE_API_BASE_URL` perlu **rebuild** service `web`
+> (`docker compose up --build web`) karena nilainya di-bake saat build, bukan
+> runtime.
+
 Catatan penting:
 
-- Service `api` memakai `network_mode: host`.
-- Service `api` diberi capability `NET_ADMIN`.
+- Service `api` memakai `network_mode: host` + capability `NET_ADMIN`.
+- Service `web` (Nginx) hanya menyajikan static; browser memanggil API langsung,
+  jadi `VITE_API_BASE_URL` harus alamat API yang bisa dijangkau dari browser.
 - Host tetap harus punya module WireGuard.
-- Compose saat ini menjalankan PostgreSQL di port host `5434`.
-- `iptables` harus tersedia (sudah ditambahkan ke image) bila fitur internet client (masquerade) dipakai.
+- Compose menjalankan PostgreSQL di port host `5434`.
+- `iptables` sudah disertakan di image `api` untuk fitur internet client (masquerade).
+- `AUTH_PASSWORD` kosong = login mati & API terkunci. Default-nya `change-me` —
+  **ganti sebelum produksi.**
 
 ## Internet untuk client (NAT / Masquerade)
 
