@@ -4,10 +4,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/example/wg-panel/auth"
 	"github.com/example/wg-panel/config"
 	"github.com/example/wg-panel/dto"
 	_ "github.com/example/wg-panel/docs"
 	"github.com/example/wg-panel/handlers"
+	"github.com/example/wg-panel/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -38,12 +40,27 @@ func Setup(cfg *config.Config) *gin.Engine {
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	authSvc := auth.NewService(
+		cfg.AuthUsername,
+		cfg.AuthPassword,
+		cfg.AuthTokenSecret,
+		time.Duration(cfg.AuthTokenTTLHours)*time.Hour,
+	)
+	authHandler := handlers.NewAuthHandler(authSvc)
 	ifaceHandler := handlers.NewInterfaceHandler(cfg)
 	peerHandler := handlers.NewPeerHandler()
 
 	api := r.Group("/api/v1")
 	{
-		ifaces := api.Group("/interfaces")
+		// Public: obtain a token with the env-configured credentials.
+		api.POST("/auth/login", authHandler.Login)
+
+		// Everything below requires a valid bearer token.
+		protected := api.Group("")
+		protected.Use(middleware.Auth(authSvc))
+		protected.GET("/auth/me", authHandler.Me)
+
+		ifaces := protected.Group("/interfaces")
 		{
 			ifaces.GET("", ifaceHandler.List)
 			ifaces.POST("", ifaceHandler.Create)
@@ -60,7 +77,7 @@ func Setup(cfg *config.Config) *gin.Engine {
 			ifaces.POST("/:id/peers", peerHandler.Create)
 		}
 
-		peers := api.Group("/peers")
+		peers := protected.Group("/peers")
 		{
 			peers.GET("/trash", peerHandler.Trash)
 			peers.PUT("/:peerId", peerHandler.Update)

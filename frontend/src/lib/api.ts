@@ -9,9 +9,51 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 })
 
+const TOKEN_KEY = "wg_panel_token"
+
+/** Read the stored bearer token, if any. */
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+/** Persist the bearer token for subsequent requests. */
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+/** Remove the stored bearer token. */
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+// Called when the server rejects a token (401) on a protected request so the
+// app can drop the session and show the login screen.
+let onUnauthorized: (() => void) | null = null
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler
+}
+
+api.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error),
+  (error) => {
+    const status = error?.response?.status
+    const url: string = error?.config?.url ?? ""
+    // Ignore the login endpoint: a 401 there is "wrong credentials", not an
+    // expired session, and the form surfaces that message itself.
+    if (status === 401 && !url.includes("/auth/login")) {
+      clearToken()
+      onUnauthorized?.()
+    }
+    return Promise.reject(error)
+  },
 )
 
 export type ApiValidationErrors = Record<string, string[]>

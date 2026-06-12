@@ -1,10 +1,18 @@
 import { Link, NavLink, Route, Routes } from "react-router-dom"
-import { Archive, LayoutDashboard } from "lucide-react"
+import { Archive, LayoutDashboard, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dashboard } from "@/features/wireguard/Dashboard"
 import { TrashPage } from "@/features/wireguard/TrashPage"
+import { LoginPage } from "@/features/auth/LoginPage"
+import { useAuth } from "@/features/auth/AuthContext"
 
 function App() {
+  const { isAuthenticated, username, logout } = useAuth()
+
+  if (!isAuthenticated) {
+    return <LoginPage />
+  }
+
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="border-b bg-background">
@@ -27,6 +35,15 @@ function App() {
                 <Archive />
                 Trash
               </NavLink>
+            </Button>
+            {username && (
+              <span className="hidden text-sm text-muted-foreground sm:inline">
+                {username}
+              </span>
+            )}
+            <Button variant="outline" size="sm" onClick={logout}>
+              <LogOut />
+              Keluar
             </Button>
           </nav>
         </div>

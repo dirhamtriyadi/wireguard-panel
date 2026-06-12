@@ -160,7 +160,20 @@ DB_NAME=wg_panel
 DB_SSLMODE=disable
 DEFAULT_ENDPOINT=192.168.10.10
 CORS_ALLOW_ORIGINS=http://localhost:5173
+
+# Login admin (wajib diatur saat setup pertama)
+AUTH_USERNAME=admin
+AUTH_PASSWORD=change-me
+AUTH_TOKEN_SECRET=          # isi string acak panjang di production: openssl rand -hex 32
+AUTH_TOKEN_TTL_HOURS=24
 ```
+
+> **Auth.** Panel dilindungi login admin tunggal. Kredensial dibaca dari env
+> (`AUTH_USERNAME` / `AUTH_PASSWORD`) — ubah sebelum panel diekspos. Jika
+> `AUTH_PASSWORD` kosong, login dimatikan dan seluruh API dikunci. Login lewat
+> `POST /api/v1/auth/login` mengembalikan token bearer yang dikirim sebagai
+> header `Authorization: Bearer <token>` pada tiap request. Kosongkan
+> `AUTH_TOKEN_SECRET` hanya untuk dev (sesi reset tiap restart).
 
 Jalankan PostgreSQL sendiri, atau pakai compose backend:
 
