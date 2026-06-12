@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+
 	"github.com/example/wg-panel/database"
 	"github.com/example/wg-panel/models"
 	"github.com/example/wg-panel/wg"
@@ -16,14 +18,42 @@ func reconcile(ifaceID uint) error {
 	}
 
 	if !iface.Enabled {
-		// Tear the link down so a disabled interface stops serving traffic.
+		// Tear the link down so a disabled interface stops serving traffic, and
+		// remove its NAT rules so they don't linger.
+		_ = wg.TeardownNAT(&iface)
 		return wg.RemoveLink(iface.Name)
 	}
 
 	if err := wg.EnsureLink(iface.Name, iface.Address, iface.MTU); err != nil {
 		return err
 	}
-	return wg.ConfigureDevice(&iface, iface.Peers)
+	if err := wg.ConfigureDevice(&iface, iface.Peers); err != nil {
+		return err
+	}
+
+	return applyNAT(&iface)
+}
+
+// applyNAT installs or removes the interface's NAT/forwarding rules to match its
+// Masquerade setting. When masquerade is on with an auto-detected egress, the
+// resolved interface name is persisted so later teardown targets the same rules.
+func applyNAT(iface *models.WGInterface) error {
+	if !iface.Masquerade {
+		_ = wg.TeardownNAT(iface)
+		return nil
+	}
+
+	egress, err := wg.SetupNAT(iface)
+	if err != nil {
+		return fmt.Errorf("nat setup: %w", err)
+	}
+	if egress != "" && egress != iface.EgressInterface {
+		if err := database.DB.Model(iface).Update("egress_interface", egress).Error; err != nil {
+			return err
+		}
+		iface.EgressInterface = egress
+	}
+	return nil
 }
 
 // syncPeer applies a single peer add/update/delete to the live kernel device

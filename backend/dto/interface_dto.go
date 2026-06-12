@@ -11,14 +11,20 @@ type CreateInterfaceRequest struct {
 	DNS        string `json:"dns" validate:"omitempty,max=128" example:"1.1.1.1"`
 	MTU        int    `json:"mtu" validate:"omitempty,min=576,max=9000" example:"1420"`
 	Enabled    *bool  `json:"enabled" example:"true"`
+	// Masquerade enables NAT + forwarding so clients get internet access.
+	Masquerade *bool `json:"masquerade" example:"true"`
+	// EgressInterface is the WAN interface for NAT; auto-detected when empty.
+	EgressInterface string `json:"egress_interface" validate:"omitempty,max=32" example:"eth0"`
 }
 
 // UpdateInterfaceRequest is the payload for updating an interface.
 type UpdateInterfaceRequest struct {
-	ListenPort int    `json:"listen_port" validate:"required,min=1,max=65535" example:"51820"`
-	Address    string `json:"address" validate:"required,cidr" example:"10.8.0.1/24"`
-	Endpoint   string `json:"endpoint" validate:"required,min=3,max=255" example:"vpn.example.com"`
-	DNS        string `json:"dns" validate:"omitempty,max=128" example:"1.1.1.1"`
-	MTU        int    `json:"mtu" validate:"omitempty,min=576,max=9000" example:"1420"`
-	Enabled    *bool  `json:"enabled" example:"true"`
+	ListenPort      int    `json:"listen_port" validate:"required,min=1,max=65535" example:"51820"`
+	Address         string `json:"address" validate:"required,cidr" example:"10.8.0.1/24"`
+	Endpoint        string `json:"endpoint" validate:"required,min=3,max=255" example:"vpn.example.com"`
+	DNS             string `json:"dns" validate:"omitempty,max=128" example:"1.1.1.1"`
+	MTU             int    `json:"mtu" validate:"omitempty,min=576,max=9000" example:"1420"`
+	Enabled         *bool  `json:"enabled" example:"true"`
+	Masquerade      *bool  `json:"masquerade" example:"true"`
+	EgressInterface string `json:"egress_interface" validate:"omitempty,max=32" example:"eth0"`
 }

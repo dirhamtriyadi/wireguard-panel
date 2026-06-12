@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/example/wg-panel/config"
@@ -127,17 +128,23 @@ func (h *InterfaceHandler) Create(c *gin.Context) {
 	if req.Enabled != nil {
 		enabled = *req.Enabled
 	}
+	masquerade := false
+	if req.Masquerade != nil {
+		masquerade = *req.Masquerade
+	}
 
 	iface := models.WGInterface{
-		Name:       req.Name,
-		PrivateKey: privateKey,
-		PublicKey:  publicKey,
-		ListenPort: req.ListenPort,
-		Address:    req.Address,
-		DNS:        req.DNS,
-		MTU:        mtu,
-		Endpoint:   endpoint,
-		Enabled:    enabled,
+		Name:            req.Name,
+		PrivateKey:      privateKey,
+		PublicKey:       publicKey,
+		ListenPort:      req.ListenPort,
+		Address:         req.Address,
+		DNS:             req.DNS,
+		MTU:             mtu,
+		Endpoint:        endpoint,
+		Enabled:         enabled,
+		Masquerade:      masquerade,
+		EgressInterface: strings.TrimSpace(req.EgressInterface),
 	}
 
 	// GORM soft deletes keep old rows in the table. Because interface name has a
@@ -191,6 +198,10 @@ func (h *InterfaceHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Capture the previous NAT target so we can tear down stale rules when the
+	// egress interface changes or masquerade is turned off.
+	prevNAT := models.WGInterface{Name: iface.Name, Address: iface.Address, EgressInterface: iface.EgressInterface}
+
 	iface.ListenPort = req.ListenPort
 	iface.Address = req.Address
 	iface.Endpoint = req.Endpoint
@@ -201,6 +212,14 @@ func (h *InterfaceHandler) Update(c *gin.Context) {
 	if req.Enabled != nil {
 		iface.Enabled = *req.Enabled
 	}
+	if req.Masquerade != nil {
+		iface.Masquerade = *req.Masquerade
+	}
+	iface.EgressInterface = strings.TrimSpace(req.EgressInterface)
+
+	// Remove the old rules before applying the new state; reconcile re-adds the
+	// current ones. Best-effort: a stale-rule cleanup failure shouldn't block.
+	_ = wg.TeardownNAT(&prevNAT)
 
 	if err := database.DB.Save(iface).Error; err != nil {
 		dto.Error(c, http.StatusInternalServerError, "failed to update interface")
@@ -228,6 +247,7 @@ func (h *InterfaceHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	_ = wg.TeardownNAT(iface)
 	removeErr := wg.RemoveLink(iface.Name)
 	if err := database.DB.Where("interface_id = ?", iface.ID).Delete(&models.Peer{}).Error; err != nil {
 		dto.Error(c, http.StatusInternalServerError, "failed to move interface peers to trash")
@@ -320,6 +340,7 @@ func (h *InterfaceHandler) Purge(c *gin.Context) {
 		dto.Error(c, http.StatusNotFound, "interface not found")
 		return
 	}
+	_ = wg.TeardownNAT(&iface)
 	removeErr := wg.RemoveLink(iface.Name)
 	if err := database.DB.Unscoped().Where("interface_id = ?", iface.ID).Delete(&models.Peer{}).Error; err != nil {
 		dto.Error(c, http.StatusInternalServerError, "failed to permanently delete interface peers")

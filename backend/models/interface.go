@@ -19,6 +19,15 @@ type WGInterface struct {
 	Endpoint   string `json:"endpoint" gorm:"size:255;not null"` // public host clients dial, e.g. vpn.example.com
 	Enabled    bool   `json:"enabled" gorm:"not null;default:true"`
 
+	// Masquerade installs NAT (MASQUERADE) + forwarding rules so clients of this
+	// interface reach the internet through the server's uplink. Off by default
+	// because it routes client traffic out the host.
+	Masquerade bool `json:"masquerade" gorm:"not null;default:false"`
+	// EgressInterface is the WAN/uplink the masquerade rules use. When empty and
+	// Masquerade is on, the server auto-detects the default-route interface and
+	// stores the resolved name here so teardown targets the same rules.
+	EgressInterface string `json:"egress_interface" gorm:"size:32"`
+
 	Peers []Peer `json:"peers,omitempty" gorm:"foreignKey:InterfaceID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 
 	CreatedAt time.Time      `json:"created_at"`

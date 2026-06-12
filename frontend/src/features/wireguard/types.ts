@@ -28,6 +28,8 @@ export interface WGInterface {
   mtu: number
   endpoint: string
   enabled: boolean
+  masquerade: boolean
+  egress_interface: string
   peers?: Peer[]
   created_at: string
   updated_at: string

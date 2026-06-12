@@ -240,6 +240,26 @@ Catatan penting:
 - Service `api` diberi capability `NET_ADMIN`.
 - Host tetap harus punya module WireGuard.
 - Compose saat ini menjalankan PostgreSQL di port host `5434`.
+- `iptables` harus tersedia (sudah ditambahkan ke image) bila fitur internet client (masquerade) dipakai.
+
+## Internet untuk client (NAT / Masquerade)
+
+WireGuard hanya mendorong paket ke dalam tunnel; agar client mendapat **internet**,
+server harus mem-forward + NAT paket client keluar lewat uplink. Saat membuat
+interface, centang **Internet access (NAT/masquerade)**:
+
+- Backend otomatis mengaktifkan `net.ipv4.ip_forward` dan memasang aturan
+  `iptables` (MASQUERADE + FORWARD) dari subnet tunnel ke interface uplink.
+- **Egress interface** boleh dikosongkan → server mendeteksi interface
+  default-route dan menyimpannya, sehingga aturan bisa **dihapus kembali** secara
+  tepat.
+- Aturan dilepas otomatis saat interface **dimatikan, dihapus, atau di-purge**
+  (`ip_forward` sengaja dibiarkan menyala karena bisa dipakai tunnel lain).
+- Client juga perlu `AllowedIPs = 0.0.0.0/0` (default di form peer) dan `DNS`
+  terisi agar internet jalan penuh. Untuk akses internal saja (split tunnel),
+  matikan masquerade dan set `AllowedIPs` client ke subnet tertentu.
+
+Catatan: butuh `CAP_NET_ADMIN`/root dan biner `iptables` di host/kontainer.
 
 Jika frontend berjalan dari host lain, sesuaikan:
 

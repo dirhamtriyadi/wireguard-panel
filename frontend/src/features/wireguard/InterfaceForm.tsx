@@ -42,6 +42,7 @@ export function InterfaceForm({ onSubmit, submitting }: Props) {
     register,
     handleSubmit,
     setError,
+    watch,
     formState: { errors },
   } = useForm<InterfaceFormValues>({
     resolver: zodResolver(interfaceSchema),
@@ -53,8 +54,12 @@ export function InterfaceForm({ onSubmit, submitting }: Props) {
       dns: "1.1.1.1",
       mtu: 1420,
       private_key: "",
+      masquerade: false,
+      egress_interface: "",
     },
   })
+
+  const masquerade = watch("masquerade")
 
   async function handleValidSubmit(values: InterfaceFormValues) {
     try {
@@ -126,6 +131,41 @@ export function InterfaceForm({ onSubmit, submitting }: Props) {
           {...register("private_key")}
         />
       </Field>
+
+      <div className="space-y-3 rounded-md border p-3">
+        <label htmlFor="masquerade" className="flex items-start gap-2">
+          <input
+            id="masquerade"
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-input"
+            {...register("masquerade")}
+          />
+          <span className="space-y-0.5">
+            <span className="block text-sm font-medium">
+              Internet access (NAT/masquerade)
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Forward client traffic out the server's uplink so clients get
+              internet. Leave off for internal-only (split tunnel) access.
+            </span>
+          </span>
+        </label>
+
+        {masquerade && (
+          <Field
+            id="egress_interface"
+            label="Egress interface (optional)"
+            hint="WAN/uplink for NAT, e.g. eth0. Leave blank to auto-detect."
+            error={errors.egress_interface?.message}
+          >
+            <Input
+              id="egress_interface"
+              placeholder="auto-detected if empty"
+              {...register("egress_interface")}
+            />
+          </Field>
+        )}
+      </div>
 
       <DialogFooter>
         <DialogClose asChild>
